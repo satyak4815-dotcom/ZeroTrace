@@ -18,7 +18,7 @@
 
 ## 🚀 LIVE DEMO
 
-### 🔗 **[Launch ZeroTrace →](YOUR_VERCEL_LINK_HERE)**
+### 🔗 **[Launch ZeroTrace →](https://zero-trace-ruby.vercel.app)**
 
 > Replace `YOUR_VERCEL_LINK_HERE` with the final Vercel deployment URL.
 
