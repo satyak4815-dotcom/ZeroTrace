@@ -130,11 +130,10 @@ export default function SignalUpload({
     console.log('[ZT Upload] Validation result:', isValid, 'for', fileName);
 
     if (!isValid) {
-      setErrorMessage('INVALID FORMAT: Please select an .IQ, .WAV, .BIN, .RAW, .DAT, or .SIGMF-DATA signal capture file.');
+      setErrorMessage('Unsupported format: Please select an .IQ, .WAV, .BIN, .RAW, .DAT, or .SIGMF-DATA signal file.');
       return;
     }
 
-    // Resolve sample rate from ref, state, or DOM input element
     const rawSampleRate =
       sampleRateRef.current ||
       sampleRate ||
@@ -144,7 +143,6 @@ export default function SignalUpload({
         : '') ||
       '';
 
-    // Resolve center frequency from ref, state, or DOM input element
     const rawCenterFreq =
       centerFrequencyRef.current ||
       centerFrequency ||
@@ -167,6 +165,12 @@ export default function SignalUpload({
       const parsedCenterFreq = parseFloat(String(rawCenterFreq).replace(/,/g, '').trim());
       if (!isNaN(parsedCenterFreq) && parsedCenterFreq > 0) {
         metadata.center_frequency = parsedCenterFreq;
+        const isFromSigmf = Boolean(
+          sigmfInfo &&
+          sigmfInfo.center_frequency !== undefined &&
+          Math.abs(Number(sigmfInfo.center_frequency) - parsedCenterFreq) < 1
+        );
+        metadata.center_frequency_source = isFromSigmf ? 'sigmf' : 'manual';
       }
     }
 
@@ -214,287 +218,291 @@ export default function SignalUpload({
   };
 
   return (
-    <div className="relative bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col justify-between overflow-hidden">
-      {/* Corner HUD markers */}
-      <div className="absolute top-0 left-0 w-2.5 h-2.5 border-t-2 border-l-2 border-cyan-500/70 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-500/70 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-500/70 pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-500/70 pointer-events-none" />
-
-      {/* Header section */}
-      <div className="flex items-center justify-between mb-3 border-b border-slate-800/80 pb-2.5">
-        <div className="flex items-center space-x-2">
-          <HardDrive className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-            Signal Ingestion Port // RF Baseband
-          </h2>
-        </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-cyan-300">
-          CH-01 I/Q READY
-        </span>
+    <div className="relative rounded-3xl bg-gradient-to-br from-cyan-50/90 via-sky-50/50 to-blue-50/30 border border-cyan-100/80 p-6 sm:p-10 shadow-xs overflow-hidden">
+      
+      {/* Lightweight SVG Waveform Background Illustration */}
+      <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-20 pointer-events-none hidden md:block">
+        <svg viewBox="0 0 400 400" className="w-full h-full text-cyan-600 fill-none stroke-current stroke-[1.5]">
+          <path d="M 0 200 Q 50 120 100 200 T 200 200 T 300 200 T 400 200" />
+          <path d="M 0 200 Q 50 150 100 200 T 200 200 T 300 200 T 400 200" className="opacity-60" />
+          <path d="M 0 200 Q 50 80 100 200 T 200 200 T 300 200 T 400 200" className="opacity-30" />
+          <circle cx="200" cy="200" r="140" strokeDasharray="4 4" className="opacity-40" />
+          <circle cx="200" cy="200" r="80" strokeDasharray="2 2" className="opacity-60" />
+        </svg>
       </div>
 
-      {/* Upload Zone States */}
-      {isUploading ? (
-        /* STATE 2: UPLOADING */
-        <div className="border-2 border-cyan-500/60 bg-slate-950/70 rounded-lg p-6 flex flex-col items-center justify-center text-center relative overflow-hidden">
-          {/* Scanning line animation */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/10 to-transparent animate-scanline pointer-events-none" />
-
-          <RefreshCw className="w-10 h-10 text-cyan-400 animate-spin mb-3 drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
-          <h3 className="text-sm font-mono font-bold text-cyan-200 tracking-wider">
-            TRANSMITTING RAW BASEBAND TELEMETRY...
-          </h3>
-          <p className="text-[11px] font-mono text-slate-400 mt-1">
-            Demodulator Buffering: {uploadProgress}% Completed
+      <div className="relative z-10 max-w-4xl mx-auto">
+        
+        {/* Hero Banner Text */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-3">
+            Welcome to <span className="text-cyan-600 bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">ZeroTrace Intel</span>
+          </h1>
+          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal">
+            Upload a signal file to analyze modulation, spectrum, and signal characteristics.
           </p>
-
-          {/* Progress Bar */}
-          <div className="w-full max-w-md bg-slate-900 border border-cyan-500/30 rounded-full h-3 mt-4 p-0.5 relative overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-cyan-600 to-cyan-400 h-full rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(6,182,212,0.9)]"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-
-          <div className="flex justify-between w-full max-w-md text-[10px] font-mono text-slate-500 mt-2">
-            <span>BITRATE: 48.0 MB/s</span>
-            <span>BURST: PACKET_BURST_SYNC</span>
-            <span className="text-cyan-400 font-bold">{uploadProgress}%</span>
-          </div>
         </div>
-      ) : currentFileInfo && currentFileInfo.name ? (
-        /* STATE 3: SUCCESS & ACTIVE FILE DISPLAY */
-        <div className="border border-emerald-500/40 bg-slate-950/80 rounded-lg p-4 relative glow-emerald">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start space-x-3">
-              <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/50 text-emerald-400">
-                <FileCheck className="w-6 h-6 animate-pulse" />
+
+        {/* Upload Card */}
+        <div className="bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm">
+          
+          {/* Card Header */}
+          <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2 rounded-xl bg-cyan-50 border border-cyan-100 text-cyan-600">
+                <HardDrive className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-900/60 border border-emerald-500/40 text-emerald-300">
-                    STATUS: ACTIVE INTERCEPT
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-400">FILE VERIFIED</span>
-                </div>
-                <h4 className="text-base font-mono font-bold text-slate-100 mt-1 break-all">
-                  {currentFileInfo.name}
-                </h4>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-400 mt-1.5">
-                  <span className="flex items-center gap-1 text-cyan-300">
-                    <Radio className="w-3.5 h-3.5" /> {currentFileInfo.type}
-                  </span>
-                  <span className="text-slate-600">|</span>
-                  <span className="flex items-center gap-1 text-slate-300">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" /> Duration: {currentFileInfo.duration}
-                  </span>
-                </div>
+                <h2 className="text-sm font-bold text-slate-900">Signal File Ingestion</h2>
+                <p className="text-xs text-slate-500">Select raw IQ capture or audio signal</p>
               </div>
             </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200/60">
+              IQ / WAV Ready
+            </span>
+          </div>
 
-            {/* Quick Re-upload / Swap action */}
-            <div className="flex flex-col sm:items-end gap-2">
+          {/* Upload Zone States */}
+          {isUploading ? (
+            /* Uploading state */
+            <div className="border border-cyan-200 bg-cyan-50/50 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+              <RefreshCw className="w-10 h-10 text-cyan-600 animate-spin mb-3" />
+              <h3 className="text-base font-bold text-slate-900">
+                Analyzing signal file...
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Processing: {uploadProgress}% complete
+              </p>
+              <div className="w-full max-w-sm bg-slate-200 rounded-full h-2 mt-4 overflow-hidden">
+                <div
+                  className="bg-cyan-600 h-full rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          ) : currentFileInfo && currentFileInfo.name ? (
+            /* File loaded state */
+            <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start space-x-3.5">
+                  <div className="p-3 rounded-xl bg-emerald-100/80 text-emerald-700 flex-shrink-0">
+                    <FileCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                        Active Signal File
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900 mt-1 break-all">
+                      {currentFileInfo.name}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1.5 font-medium">
+                      <span className="flex items-center gap-1.5 text-cyan-700 font-semibold">
+                        <Radio className="w-3.5 h-3.5" /> {currentFileInfo.type}
+                      </span>
+                      <span className="text-slate-300">•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-500" /> {currentFileInfo.duration}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <label
+                  htmlFor="signal-file-input"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white transition-all cursor-pointer shadow-xs active:scale-95 select-none"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Choose Another File</span>
+                </label>
+              </div>
+            </div>
+          ) : (
+            /* Idle dropzone */
+            <label
+              htmlFor="signal-file-input"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`block border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-200 ${
+                isDragOver
+                  ? 'border-cyan-500 bg-cyan-50/70 scale-[0.99]'
+                  : 'border-slate-200 bg-slate-50/40 hover:border-cyan-400 hover:bg-cyan-50/30'
+              }`}
+            >
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="p-4 rounded-2xl bg-white text-cyan-600 shadow-xs border border-slate-100">
+                  <UploadCloud className="w-8 h-8" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-slate-800">
+                    Drag &amp; drop your signal file here
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    or click to browse — supports .IQ, .WAV, .BIN, .RAW, .SIGMF-DATA
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-50 text-cyan-700 border border-cyan-200/60">.IQ</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">.WAV</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200/60">.SIGMF-DATA</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">.BIN</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">.RAW</span>
+                </div>
+              </div>
+            </label>
+          )}
+
+          {/* SDR Capture Metadata Inputs */}
+          <div className="mt-6 pt-5 border-t border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-700">
+                SDR Capture Metadata
+              </span>
               <label
-                htmlFor="signal-file-input"
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 transition-all cursor-pointer shadow-sm active:scale-95 select-none"
+                htmlFor="sigmf-meta-file-input"
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 cursor-pointer transition-colors shadow-2xs select-none"
               >
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>LOAD NEW FILE</span>
+                <FileCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>Attach .sigmf-meta</span>
               </label>
-              <span className="text-[9px] font-mono text-slate-500">
-                Accepted: .IQ, .WAV, .BIN, .RAW, .SIGMF-DATA
-              </span>
+            </div>
+
+            {/* SigMF Meta Confirmation Badge */}
+            {sigmfInfo && (
+              <div className="mb-3 p-3 rounded-xl bg-purple-50/80 border border-purple-200/80 text-xs text-purple-900 flex flex-col gap-1 shadow-2xs">
+                <div className="flex items-center space-x-1.5 text-purple-800 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <span>SigMF Metadata Attached</span>
+                </div>
+                <div className="text-purple-800/90 pl-5 space-y-0.5 text-xs font-medium">
+                  {sigmfInfo.datatype && (
+                    <div>Datatype: <span className="font-semibold text-purple-950">{sigmfInfo.datatype}</span></div>
+                  )}
+                  {sigmfInfo.sample_rate !== undefined && (
+                    <div>Sample Rate: <span className="font-semibold text-purple-950">{sigmfInfo.sample_rate.toLocaleString()} Hz</span></div>
+                  )}
+                  {sigmfInfo.center_frequency !== undefined && (
+                    <div>Center Frequency: <span className="font-semibold text-purple-950">{sigmfInfo.center_frequency.toLocaleString()} Hz</span></div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SigMF Meta Error Message */}
+            {metaErrorMessage && (
+              <div className="mb-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{metaErrorMessage}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="sample-rate-input" className="block text-xs font-medium text-slate-600 mb-1">
+                  Sample Rate (Hz)
+                </label>
+                <input
+                  id="sample-rate-input"
+                  ref={sampleRateInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={sampleRate}
+                  onChange={handleSampleRateChange}
+                  onInput={handleSampleRateChange}
+                  placeholder="e.g. 20000000"
+                  disabled={isUploading}
+                  className="w-full bg-white border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-50 disabled:bg-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="center-freq-input" className="block text-xs font-medium text-slate-600 mb-1">
+                  Center Frequency (Hz)
+                </label>
+                <input
+                  id="center-freq-input"
+                  ref={centerFrequencyInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={centerFrequency}
+                  onChange={handleCenterFrequencyChange}
+                  onInput={handleCenterFrequencyChange}
+                  placeholder="e.g. 915000000"
+                  disabled={isUploading}
+                  className="w-full bg-white border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-50 disabled:bg-slate-100"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-2 font-normal">
+              Optional capture metadata — forwarded directly to the backend DSP core.
+            </p>
+          </div>
+
+          {/* Hidden File Input for .sigmf-meta */}
+          <input
+            id="sigmf-meta-file-input"
+            ref={metaFileInputRef}
+            type="file"
+            accept=".sigmf-meta,application/json"
+            onClick={(e) => {
+              (e.target as HTMLInputElement).value = '';
+            }}
+            onChange={handleMetaFileChange}
+            className="hidden"
+          />
+
+          {/* Hidden File Input linked via id and ref */}
+          <input
+            id="signal-file-input"
+            ref={fileInputRef}
+            type="file"
+            accept=".iq,.wav,.bin,.raw,.dat,.sigmf-data,audio/*"
+            onClick={(e) => {
+              (e.target as HTMLInputElement).value = '';
+            }}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="mt-4 flex items-center space-x-2 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Sample Signal Presets */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+            <span className="font-semibold text-slate-600">Sample Signals:</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handlePreset('alpha')}
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 border border-slate-200/80 text-slate-700 transition-colors text-xs font-medium"
+              >
+                Alpha-44 (.IQ)
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePreset('covert')}
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 border border-slate-200/80 text-slate-700 transition-colors text-xs font-medium"
+              >
+                Covert-Ch9 (.WAV)
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePreset('satcom')}
+                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-cyan-50 hover:text-cyan-700 border border-slate-200/80 text-slate-700 transition-colors text-xs font-medium"
+              >
+                Satcom-03 (.IQ)
+              </button>
             </div>
           </div>
-        </div>
-      ) : (
-        /* STATE 1: IDLE DROPZONE */
-        <label
-          htmlFor="signal-file-input"
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`block border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 ${
-            isDragOver
-              ? 'border-cyan-400 bg-cyan-950/30 shadow-neon-cyan'
-              : 'border-slate-700/80 bg-slate-900/50 hover:border-cyan-500/60 hover:bg-slate-800/40'
-          }`}
-        >
-          <div className="flex flex-col items-center justify-center space-y-2.5">
-            <div className="p-3 rounded-full bg-slate-800 border border-cyan-500/30 text-cyan-400 shadow-neon-cyan">
-              <UploadCloud className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-xs font-mono font-bold text-slate-200 tracking-wide uppercase">
-                Drag & Drop Signal Intercept File (.IQ / .wav / .sigmf-data)
-              </p>
-              <p className="text-[11px] font-mono text-slate-400 mt-1">
-                Or click to browse local drive
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-bold">
-                .IQ FORMAT
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 border border-slate-600 text-slate-300 font-bold">
-                .WAV AUDIO IQ
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/60 border border-purple-500/40 text-purple-300 font-bold">
-                .SIGMF-DATA
-              </span>
-            </div>
-          </div>
-        </label>
-      )}
 
-      {/* Optional SDR Capture Metadata Inputs */}
-      <div className="mt-3 pt-3 border-t border-slate-800/80">
-        {/* Header row with Title and Attach .sigmf-meta button */}
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-mono font-semibold text-slate-300">
-            SDR Capture Metadata
-          </span>
-          <label
-            htmlFor="sigmf-meta-file-input"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-bold rounded bg-slate-800 hover:bg-slate-700 text-purple-300 hover:text-purple-200 border border-purple-500/40 hover:border-purple-400 cursor-pointer transition-all shadow-sm active:scale-95 select-none"
-          >
-            <FileCheck className="w-3 h-3 text-purple-400" />
-            <span>Attach .sigmf-meta</span>
-          </label>
-        </div>
-
-        {/* SigMF Meta Confirmation Badge */}
-        {sigmfInfo && (
-          <div className="mb-2.5 p-2 rounded bg-purple-950/40 border border-purple-500/40 text-[10px] font-mono text-purple-200 flex flex-col gap-0.5 shadow-sm">
-            <div className="flex items-center space-x-1.5 text-purple-300 font-bold">
-              <CheckCircle2 className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-              <span>SIGMF AUTO-LOADED</span>
-            </div>
-            <div className="text-purple-200/90 pl-5 space-y-0.5 text-[9px]">
-              {sigmfInfo.datatype && (
-                <div>Datatype: <span className="text-purple-100 font-semibold">{sigmfInfo.datatype}</span></div>
-              )}
-              {sigmfInfo.sample_rate !== undefined && (
-                <div>Sample Rate: <span className="text-purple-100 font-semibold">{sigmfInfo.sample_rate.toLocaleString()} Hz</span></div>
-              )}
-              {sigmfInfo.center_frequency !== undefined && (
-                <div>Center Frequency: <span className="text-purple-100 font-semibold">{sigmfInfo.center_frequency.toLocaleString()} Hz</span></div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* SigMF Meta Error Message */}
-        {metaErrorMessage && (
-          <div className="mb-2 p-1.5 rounded bg-red-950/50 border border-red-500/40 text-[10px] font-mono text-red-300 flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-            <span>{metaErrorMessage}</span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          <div>
-            <label htmlFor="sample-rate-input" className="block text-[10px] font-mono text-slate-400 mb-1">
-              Sample Rate (Hz)
-            </label>
-            <input
-              id="sample-rate-input"
-              ref={sampleRateInputRef}
-              type="text"
-              inputMode="numeric"
-              value={sampleRate}
-              onChange={handleSampleRateChange}
-              onInput={handleSampleRateChange}
-              placeholder="e.g. 20000000"
-              disabled={isUploading}
-              className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-200 placeholder:text-slate-600 outline-none transition-colors disabled:opacity-50"
-            />
-          </div>
-          <div>
-            <label htmlFor="center-freq-input" className="block text-[10px] font-mono text-slate-400 mb-1">
-              Center Frequency (Hz)
-            </label>
-            <input
-              id="center-freq-input"
-              ref={centerFrequencyInputRef}
-              type="text"
-              inputMode="numeric"
-              value={centerFrequency}
-              onChange={handleCenterFrequencyChange}
-              onInput={handleCenterFrequencyChange}
-              placeholder="e.g. 915000000"
-              disabled={isUploading}
-              className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-200 placeholder:text-slate-600 outline-none transition-colors disabled:opacity-50"
-            />
-          </div>
-        </div>
-        <p className="text-[9px] font-mono text-slate-500 mt-1.5">
-          Optional capture metadata — use values supplied by the SDR recorder.
-        </p>
-      </div>
-
-      {/* Hidden File Input for .sigmf-meta */}
-      <input
-        id="sigmf-meta-file-input"
-        ref={metaFileInputRef}
-        type="file"
-        accept=".sigmf-meta,application/json"
-        onClick={(e) => {
-          (e.target as HTMLInputElement).value = '';
-        }}
-        onChange={handleMetaFileChange}
-        className="hidden"
-      />
-
-      {/* Hidden File Input linked via id and ref */}
-      <input
-        id="signal-file-input"
-        ref={fileInputRef}
-        type="file"
-        accept=".iq,.wav,.bin,.raw,.dat,.sigmf-data,audio/*"
-        onClick={(e) => {
-          (e.target as HTMLInputElement).value = '';
-        }}
-        onChange={handleFileChange}
-        className="hidden"
-      />
-
-      {/* Error Message */}
-      {errorMessage && (
-        <div className="mt-2 flex items-center space-x-2 text-xs font-mono text-red-400 bg-red-950/50 border border-red-500/40 rounded p-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* Quick Test Intercept Presets */}
-      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-400">
-        <span className="text-slate-500 uppercase tracking-wider">Quick Presets:</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => handlePreset('alpha')}
-            className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition-colors"
-          >
-            Alpha-44 (.IQ)
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePreset('covert')}
-            className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition-colors"
-          >
-            Covert-Ch9 (.WAV)
-          </button>
-          <button
-            type="button"
-            onClick={() => handlePreset('satcom')}
-            className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-cyan-950/60 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/40 transition-colors"
-          >
-            Satcom-03 (.IQ)
-          </button>
         </div>
       </div>
     </div>
   );
 }
+

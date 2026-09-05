@@ -11,8 +11,6 @@ interface WaterfallVisualizerProps {
 
 /**
  * Downsample a single row of STFT frequency bins to a target pixel width.
- * Uses MAX aggregation: each output pixel represents the maximum magnitude
- * among all source STFT bins that map to that pixel column.
  */
 function downsampleRow(row: number[], targetCols: number): number[] {
   const srcCols = row.length;
@@ -44,12 +42,6 @@ function downsampleRow(row: number[], targetCols: number): number[] {
 
 /**
  * High-contrast SDR spectrum colour gradient for display only.
- * Normalized input [0, 1] -> RGB color map:
- *   [0.00 - 0.15] Dark navy / deep purple
- *   [0.15 - 0.40] Electric blue -> Cyan
- *   [0.40 - 0.70] Bright Cyan -> Neon Green -> Yellow
- *   [0.70 - 0.90] Yellow -> Vibrant Orange -> Red
- *   [0.90 - 1.00] Red -> Intense White-Hot Peak
  */
 function getDisplayColor(norm: number): [number, number, number] {
   const n = Math.min(1, Math.max(0, norm));
@@ -91,7 +83,7 @@ function getDisplayColor(norm: number): [number, number, number] {
   }
 }
 
-/** Compute p2 and p98 percentiles on an array of numbers for robust display contrast scaling. */
+/** Compute percentiles on an array of numbers for display contrast scaling. */
 function computePercentiles(values: number[]): { p2: number; p98: number } {
   if (values.length === 0) return { p2: 0, p98: 1 };
   const sorted = Float32Array.from(values).sort();
@@ -128,7 +120,6 @@ export default function WaterfallVisualizer({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // ── 1. Setup physical canvas pixel buffer dimensions ──
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = container.clientWidth || 500;
     const cssHeight = 280;
@@ -145,7 +136,6 @@ export default function WaterfallVisualizer({
 
     const targetCols = Math.min(srcCols, cssWidth);
 
-    // ── 2. Scan REAL matrix for truthful telemetry & log-transformed display values ──
     let peakSrcBin = 0;
     let peakRawMag = -Infinity;
     const displayValues: number[] = [];
@@ -160,7 +150,6 @@ export default function WaterfallVisualizer({
           peakRawMag = v;
           peakSrcBin = c;
         }
-        // Logarithmic display transform: log10(1 + magnitude)
         const logVal = Math.log10(1 + Math.max(0, v));
         displayValues.push(logVal);
       }
@@ -168,15 +157,12 @@ export default function WaterfallVisualizer({
 
     if (displayValues.length === 0) return;
 
-    // Truthful telemetry readouts derived strictly from raw matrix
-    setPeakBin(`BIN ${peakSrcBin + 1} / ${srcCols}`);
+    setPeakBin(`Bin ${peakSrcBin + 1} / ${srcCols}`);
     setPeakMagnitude(Number.isFinite(peakRawMag) ? peakRawMag.toFixed(2) : 'N/A');
 
-    // ── 3. Percentile normalization bounds for DISPLAY ONLY ──
     const { p2, p98 } = computePercentiles(displayValues);
     const pRange = p98 === p2 ? 1 : p98 - p2;
 
-    // ── 4. Build offscreen image buffer (srcRows x targetCols) ──
     const offscreen = document.createElement('canvas');
     offscreen.width = targetCols;
     offscreen.height = srcRows;
@@ -195,7 +181,6 @@ export default function WaterfallVisualizer({
       for (let c = 0; c < targetCols; c++) {
         const rawV = dsRow[c];
         const logV = Math.log10(1 + Math.max(0, rawV));
-        // Clamp display norm using robust 2nd-98th percentiles
         const norm = Math.min(1, Math.max(0, (logV - p2) / pRange));
         const [red, green, blue] = getDisplayColor(norm);
 
@@ -209,13 +194,11 @@ export default function WaterfallVisualizer({
 
     offCtx.putImageData(imgData, 0, 0);
 
-    // ── 5. Render onto main canvas with image smoothing ──
     ctx.clearRect(0, 0, bufferW, bufferH);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(offscreen, 0, 0, targetCols, srcRows, 0, 0, bufferW, bufferH);
 
-    // ── 6. Resize listener ──
     const handleResize = () => {
       const newCssW = container.clientWidth || 500;
       if (newCssW <= 0) return;
@@ -234,31 +217,34 @@ export default function WaterfallVisualizer({
   }, [waterfallMatrix, hasData]);
 
   return (
-    <div className="relative bg-slate-900/80 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col h-full">
-      {/* Tactical HUD Header */}
-      <div className="flex items-center justify-between mb-3 border-b border-slate-800/80 pb-2">
-        <div className="flex items-center space-x-2">
-          <Waves className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-            Waterfall Spectrogram // Time-Frequency Domain
-          </h2>
+    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col h-full">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <div className="flex items-center space-x-2.5">
+          <div className="p-2 rounded-xl bg-cyan-50 border border-cyan-100 text-cyan-600">
+            <Waves className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Waterfall Spectrogram</h3>
+            <p className="text-xs text-slate-500">Time-frequency representation</p>
+          </div>
         </div>
         <div className="flex items-center space-x-2">
           {hasData && (
             <button
               type="button"
               onClick={() => setIsPlaying(!isPlaying)}
-              className="flex items-center space-x-1 text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 transition-colors"
+              className="flex items-center space-x-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             >
               {isPlaying ? (
-                <><Pause className="w-3 h-3" /> <span>FREEZE</span></>
+                <><Pause className="w-3.5 h-3.5" /> <span>Freeze Sweep</span></>
               ) : (
-                <><Play className="w-3 h-3" /> <span>RUN SWEEP</span></>
+                <><Play className="w-3.5 h-3.5" /> <span>Run Sweep</span></>
               )}
             </button>
           )}
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 font-bold">
-            {hasData ? `MATRIX: ${srcRows}×${srcCols}` : 'DSP STREAM'}
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200/60">
+            {hasData ? `${srcRows}×${srcCols} Matrix` : 'DSP Active'}
           </span>
         </div>
       </div>
@@ -266,60 +252,54 @@ export default function WaterfallVisualizer({
       {/* Canvas Waterfall Container */}
       <div
         ref={containerRef}
-        className="w-full h-72 sm:h-80 relative bg-slate-950 rounded-lg border border-slate-800/80 overflow-hidden"
+        className="w-full h-72 sm:h-80 relative bg-slate-950 rounded-xl border border-slate-800 overflow-hidden"
       >
         {!hasData ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 font-mono text-sm">
+          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs font-medium">
             <Waves className="w-8 h-8 text-slate-600 mb-2 opacity-50" />
-            <span>Waterfall unavailable</span>
+            <span>Waterfall data unavailable</span>
           </div>
         ) : (
           <>
-            {/* Waterfall Canvas */}
             <canvas
               ref={canvasRef}
               className="block w-full h-full"
             />
 
-            {/* Center Carrier Reticle Overlay */}
+            {/* Reticle */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="h-full w-px bg-cyan-500/30 border-r border-dashed border-cyan-400/40" />
+              <div className="h-full w-px bg-cyan-400/50 border-r border-dashed border-cyan-400/60" />
             </div>
 
-            {/* Frequency Scale Top Bar */}
-            <div className="absolute top-0 left-0 right-0 px-2 py-1 bg-slate-950/70 backdrop-blur-sm border-b border-slate-800 flex justify-between text-[9px] font-mono text-slate-400 pointer-events-none">
-              <span>LOWER BIN (0)</span>
-              <span className="text-cyan-400 font-bold">CENTER BIN</span>
-              <span>UPPER BIN</span>
+            {/* Scale Top Bar */}
+            <div className="absolute top-0 left-0 right-0 px-3 py-1 bg-slate-900/80 backdrop-blur-xs border-b border-slate-800/80 flex justify-between text-[10px] text-slate-300 font-medium pointer-events-none">
+              <span>Lower Bin (0)</span>
+              <span className="text-cyan-300 font-semibold">Center Carrier</span>
+              <span>Upper Bin ({srcCols})</span>
             </div>
 
-            {/* Time Axis Legend on Left */}
-            <div className="absolute left-2 bottom-8 text-[8px] font-mono text-slate-500 pointer-events-none flex flex-col gap-3">
-              <span>FRAME 0</span>
-              <span>↓ TIME SLICES</span>
-            </div>
-
-            {/* Colour Scale Legend */}
-            <div className="absolute bottom-2 right-2 bg-slate-950/80 border border-slate-800 px-2 py-1 rounded flex items-center gap-2 pointer-events-none text-[8px] font-mono text-slate-400">
-              <span>MIN</span>
-              <div className="w-16 h-2 rounded-sm bg-gradient-to-r from-slate-900 via-cyan-500 via-amber-400 to-red-600" />
-              <span>MAX</span>
+            {/* Legend */}
+            <div className="absolute bottom-2 right-2 bg-slate-900/85 border border-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-2 pointer-events-none text-[10px] text-slate-300 font-medium">
+              <span>Min</span>
+              <div className="w-16 h-2 rounded-full bg-gradient-to-r from-slate-900 via-cyan-500 via-amber-400 to-red-600" />
+              <span>Max</span>
             </div>
           </>
         )}
       </div>
 
       {/* Telemetry Footer */}
-      <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-400">
+      <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500 font-medium">
         <div className="flex items-center space-x-3">
-          <span>SPAN: <span className="text-cyan-400">{samplingFreq}</span></span>
-          <span>PEAK BIN: <span className="text-emerald-400 font-bold">{hasData ? peakBin : 'N/A'}</span></span>
+          <span>Span: <strong className="text-slate-800">{samplingFreq}</strong></span>
+          <span>Peak: <strong className="text-slate-800">{hasData ? peakBin : 'N/A'}</strong></span>
         </div>
-        <div className="flex items-center space-x-3">
-          <span>PEAK MAGNITUDE: <span className="text-orange-400">{hasData ? peakMagnitude : 'N/A'}</span></span>
-          <span className="text-cyan-400 font-bold">CASCADE: {hasData ? 'ACTIVE' : 'IDLE'}</span>
+        <div>
+          <span>Magnitude: <strong className="text-slate-800">{hasData ? peakMagnitude : 'N/A'}</strong></span>
         </div>
       </div>
     </div>
   );
 }
+
+

@@ -9,7 +9,6 @@ import ParameterGrid from '@/components/ParameterGrid';
 import ConstellationPlot from '@/components/ConstellationPlot';
 import WaterfallVisualizer from '@/components/WaterfallVisualizer';
 import BitstreamTerminal from '@/components/BitstreamTerminal';
-import { Shield, Radio, Activity, Cpu, Terminal, RefreshCw } from 'lucide-react';
 
 export default function DashboardPage() {
   const [signalData, setSignalData] = useState<SignalData>(mockSignalData);
@@ -56,10 +55,14 @@ export default function DashboardPage() {
       setIsBackendConnected(true);
     } catch (error) {
       console.error('[ZT Page] File upload error:', error);
-      // Still update the UI with at least the filename on error
       setSignalData((prev) => ({
         ...prev,
         fileInfo: { ...prev.fileInfo, name: file.name },
+        parameters: {
+          ...prev.parameters,
+          center_frequency: metadata?.center_frequency !== undefined ? String(metadata.center_frequency) : prev.parameters.center_frequency,
+          center_frequency_source: metadata?.center_frequency_source ?? prev.parameters.center_frequency_source,
+        },
       }));
     } finally {
       setIsUploading(false);
@@ -68,94 +71,94 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#02050e] text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-black">
-      {/* 1. Tactical Command Header */}
+    <div className="min-h-screen bg-[#F4F8FB] text-slate-900 selection:bg-cyan-600 selection:text-white">
+
+      {/* Modern Scientific Header */}
       <DashboardHeader
         samplingFreq={signalData?.parameters?.sampling_frequency}
         isBackendConnected={isBackendConnected}
       />
 
-      {/* Main Content Layout Container */}
-      <main className="flex-1 max-w-[1780px] w-full mx-auto p-3 sm:p-5 lg:p-6 space-y-5">
-        {/* Top Operational Section: Upload & Parameter Ingestion */}
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-          {/* Signal Ingestion Upload Zone (4 cols on lg) */}
-          <div className="lg:col-span-4 flex flex-col">
-            <SignalUpload
-              currentFileInfo={signalData?.fileInfo}
-              onFileUpload={handleFileUpload}
-              onPresetSelect={(preset) => {
+      <main className="max-w-[1530px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+        {/* Hero & Ingestion Section */}
+        <section aria-label="Signal Ingestion">
+          <SignalUpload
+            currentFileInfo={signalData?.fileInfo}
+            onFileUpload={handleFileUpload}
+            onPresetSelect={(preset) => {
               setSignalData(preset);
               setLastAnalyzed(new Date().toLocaleTimeString());
             }}
-              isUploading={isUploading}
-              uploadProgress={uploadProgress}
-            />
-          </div>
-
-          {/* Demodulation Parameter Cards (8 cols on lg) */}
-          <div className="lg:col-span-8 flex flex-col justify-between">
-            <ParameterGrid parameters={signalData?.parameters} />
-          </div>
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+          />
         </section>
 
-        {/* Middle Visualizer Matrix: Constellation Scatter Plot & Waterfall Spectrogram */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Left: Constellation Scatter Plot */}
-          <div className="w-full">
+        {/* Signal Analysis Parameters */}
+        <section aria-labelledby="section-params">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1.5 h-6 rounded-full bg-cyan-500 inline-block" />
+            <h2 id="section-params" className="text-xl font-bold tracking-tight text-slate-900">
+              Signal Analysis &amp; Telemetry
+            </h2>
+          </div>
+          <ParameterGrid parameters={signalData?.parameters} />
+        </section>
+
+        {/* Signal Visualizations */}
+        <section aria-labelledby="section-viz">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1.5 h-6 rounded-full bg-blue-500 inline-block" />
+            <h2 id="section-viz" className="text-xl font-bold tracking-tight text-slate-900">
+              Signal Visualizations
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <WaterfallVisualizer
+              waterfallMatrix={signalData?.plot_data?.waterfall_matrix}
+              samplingFreq={signalData?.parameters?.sampling_frequency || '2.4 MHz'}
+              isWav={signalData?.fileInfo?.name?.toLowerCase().endsWith('.wav')}
+            />
             <ConstellationPlot
               points={signalData?.plot_data?.constellation_points}
               modulation={signalData?.parameters?.modulation || 'N/A'}
               isWav={signalData?.fileInfo?.name?.toLowerCase().endsWith('.wav')}
             />
           </div>
-
-          {/* Right: Waterfall Visualizer */}
-          <div className="w-full">
-            <WaterfallVisualizer
-              waterfallMatrix={signalData?.plot_data?.waterfall_matrix}
-              samplingFreq={signalData?.parameters?.sampling_frequency || '2.4 MHz'}
-              isWav={signalData?.fileInfo?.name?.toLowerCase().endsWith('.wav')}
-            />
-          </div>
         </section>
 
-        {/* Bottom Section: Extracted Bitstream Feed Terminal */}
-        <section className="w-full">
+        {/* Decoded Stream Feed */}
+        <section aria-labelledby="section-bitstream">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-1.5 h-6 rounded-full bg-emerald-500 inline-block" />
+            <h2 id="section-bitstream" className="text-xl font-bold tracking-tight text-slate-900">
+              Decoded Stream Feed
+            </h2>
+          </div>
           <BitstreamTerminal bitstream={signalData?.bitstream} />
         </section>
+
       </main>
 
-      {/* Tactical Footer HUD */}
-      <footer className="bg-slate-950 border-t border-slate-800/80 px-4 py-2.5 mt-6 text-[10px] font-mono text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5 text-emerald-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold">SYSTEM STATUS: FULLY OPERATIONAL</span>
-          </div>
-          <span className="text-slate-700">|</span>
-          <span>STATION: NOFORN-ALPHA-7</span>
-          <span className="text-slate-700">|</span>
-          <span>LAT/LON: 34.0522° N, 118.2437° W</span>
-        </div>
-
-        <div className="flex items-center space-x-4">
-          {lastAnalyzed && (
-            <>
-              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                LAST ANALYZED: {lastAnalyzed}
+      {/* Clean Scientific Footer */}
+      <footer className="border-t border-slate-200/80 bg-white px-6 py-5 mt-12">
+        <div className="max-w-[1530px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 font-medium">
+          <span>ZeroTrace Intel &copy; 2026 — Automated Signal Intelligence &amp; Demodulation Platform</span>
+          <div className="flex items-center gap-4">
+            {lastAnalyzed && (
+              <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                Last analyzed: {lastAnalyzed}
               </span>
-              <span className="text-slate-700">|</span>
-            </>
-          )}
-          <span className="text-slate-400">
-            CONTRACT VERSION: <span className="text-cyan-400 font-bold">JSON-V1-COMPLIANT</span>
-          </span>
-          <span className="text-slate-700">|</span>
-          <span className="text-slate-500">ZeroTrace Intel OS &copy; 2026</span>
+            )}
+            <span className="text-slate-300">|</span>
+            <span>Scientific Dashboard v2.4</span>
+          </div>
         </div>
       </footer>
+
     </div>
   );
 }
+

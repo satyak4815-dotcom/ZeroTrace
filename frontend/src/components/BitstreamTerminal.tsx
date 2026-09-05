@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Terminal, Copy, Check, Play, RefreshCw, Cpu, Database, Binary } from 'lucide-react';
+import { Copy, Check, RefreshCw, Binary, FileText } from 'lucide-react';
 import { Bitstream } from '@/lib/mockData';
 
 interface BitstreamTerminalProps {
@@ -21,6 +21,7 @@ export default function BitstreamTerminal({ bitstream }: BitstreamTerminalProps)
   const payloadStr = bitstream?.payload ?? '';
   const isBinaryHeader = /^[01]+$/.test(headerStr);
   const isBinaryPayload = /^[01]+$/.test(payloadStr);
+  const hasHeaderData = headerStr.trim().length > 0;
   const headerHex = isBinaryHeader
     ? `0x${parseInt(headerStr, 2).toString(16).toUpperCase()}`
     : (headerStr || 'N/A');
@@ -28,7 +29,7 @@ export default function BitstreamTerminal({ bitstream }: BitstreamTerminalProps)
   // Convert binary string to Hex and ASCII
   const parseBinary = (binStr?: string) => {
     if (!binStr || !/^[01]+$/.test(binStr)) {
-      return { hex: 'N/A (ANALOG / NON-BINARY)', ascii: binStr || 'N/A' };
+      return { hex: 'N/A (Analog / Non-Binary)', ascii: binStr || 'N/A' };
     }
     let hex = '';
     let ascii = '';
@@ -43,7 +44,7 @@ export default function BitstreamTerminal({ bitstream }: BitstreamTerminalProps)
     return { hex: hex.trim() || 'N/A', ascii: ascii || 'N/A' };
   };
 
-  // Run typing animation effect with clean timer references
+  // Run typing animation effect
   const runTypingEffect = () => {
     setIsTyping(true);
     setDisplayedHeader('');
@@ -65,12 +66,11 @@ export default function BitstreamTerminal({ bitstream }: BitstreamTerminalProps)
       } else {
         clearInterval(headerInterval);
 
-        // Start typing payload
         let pIdx = 0;
         const payloadInterval = setInterval(() => {
           if (pIdx <= targetPayload.length) {
             setDisplayedPayload(targetPayload.substring(0, pIdx));
-            pIdx += 2; // Type 2 bits at a time for fast military stream feel
+            pIdx += 2;
           } else {
             setDisplayedPayload(targetPayload);
             clearInterval(payloadInterval);
@@ -94,151 +94,134 @@ export default function BitstreamTerminal({ bitstream }: BitstreamTerminalProps)
   }, [updateKey]);
 
   const handleCopy = () => {
-    const fullText = `[HEADER]: ${headerStr || 'N/A'}\n[PAYLOAD]: ${payloadStr || 'N/A'}\n[HEX]: ${hexPayload}\n[ASCII]: ${asciiPayload}`;
+    const fullText = `${hasHeaderData ? `[HEADER]: ${headerStr}\n` : ''}[PAYLOAD]: ${payloadStr || 'N/A'}\n[HEX]: ${hexPayload}\n[ASCII]: ${asciiPayload}`;
     navigator.clipboard.writeText(fullText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="relative bg-[#050811] border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col font-mono">
-      {/* Terminal Title Bar */}
-      <div className="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {/* Tactical window control dots */}
-          <div className="flex space-x-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500/80 shadow-[0_0_5px_rgba(239,68,68,0.8)]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80 shadow-[0_0_5px_rgba(245,158,11,0.8)]" />
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 shadow-[0_0_5px_rgba(16,185,129,0.8)]" />
+    <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+        <div className="flex items-center space-x-3">
+          <div className="p-2.5 rounded-xl bg-cyan-50 border border-cyan-100 text-cyan-600">
+            <Binary className="w-5 h-5" />
           </div>
-          <span className="text-slate-600 text-xs">|</span>
-          <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300 tracking-wider">
-            <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-            <span>ZEROTRACE-CORE://DSP/DECODED_STREAM_FEED</span>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Decoded Stream Feed</h3>
+            <p className="text-xs text-slate-500">Recovered bitstream extracted from the analyzed signal</p>
           </div>
         </div>
 
-        {/* Action buttons */}
+        {/* Actions */}
         <div className="flex items-center space-x-2">
           <button
             type="button"
             onClick={runTypingEffect}
             disabled={isTyping}
-            className="flex items-center space-x-1 px-2 py-0.5 text-[10px] rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 hover:border-emerald-500/40 transition-colors disabled:opacity-50"
-            title="Replay bitstream decoding stream"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors disabled:opacity-50"
+            title="Replay stream typing animation"
           >
-            <RefreshCw className={`w-3 h-3 ${isTyping ? 'animate-spin text-emerald-400' : ''}`} />
-            <span className="hidden sm:inline">REPLAY STREAM</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isTyping ? 'animate-spin text-cyan-600' : ''}`} />
+            <span>Replay Stream</span>
           </button>
 
           <button
             type="button"
             onClick={handleCopy}
-            className="flex items-center space-x-1 px-2.5 py-0.5 text-[10px] rounded bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 transition-colors"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white transition-colors shadow-2xs"
           >
-            {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-            <span>{copied ? 'COPIED' : 'COPY STREAM'}</span>
+            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'Copied' : 'Copy Stream'}</span>
           </button>
         </div>
       </div>
 
-      {/* Terminal Screen with CRT Scanlines */}
-      <div className="relative p-5 bg-[#03060e] text-emerald-400 text-xs sm:text-sm space-y-4 min-h-[220px]">
-        {/* Subtle CRT scanlines */}
-        <div className="absolute inset-0 crt-scanlines pointer-events-none opacity-40" />
-
-        {/* Terminal Status Prompt */}
-        <div className="text-[11px] text-slate-400 flex flex-wrap items-center gap-2">
-          <span className="text-emerald-500 font-bold">sigint@zerotrace-node:~$</span>
-          <span>demod --correlate --bitstream-extractor --sync</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-300">
-            [CORRELATION_PASS: 100%]
-          </span>
-        </div>
-
-        {/* 1. Header Bits Block */}
-        <div className="bg-slate-950/90 border border-emerald-500/30 rounded-lg p-3 shadow-[0_0_15px_rgba(16,185,129,0.08)]">
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5 border-b border-slate-900 pb-1">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
-              <span className="text-cyan-300 font-bold uppercase tracking-wider">
-                FRAME HEADER SYNC WORD (PREAMBLE)
+      {/* Main Stream Container */}
+      <div className="space-y-4">
+        
+        {/* 1. Header/Preamble Block — conditionally rendered ONLY if headerStr has data */}
+        {hasHeaderData && (
+          <div className="bg-cyan-50/60 border border-cyan-100 rounded-xl p-4">
+            <div className="flex items-center justify-between text-xs font-semibold text-cyan-900 mb-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                Frame Header Preamble
+              </span>
+              <span className="text-[11px] text-cyan-700 font-mono">
+                {headerStr.length} Bits ({Math.ceil(headerStr.length / 8)} Byte)
               </span>
             </div>
-            <span className="text-[10px] text-cyan-400/90">
-              LENGTH: {headerStr.length} BITS ({Math.ceil(headerStr.length / 8) || 1} BYTE)
+
+            <div className="font-mono text-base font-bold tracking-widest text-cyan-950 break-all">
+              <span>{displayedHeader || (isTyping ? '' : headerStr)}</span>
+              {isTyping && displayedHeader.length < headerStr.length && (
+                <span className="inline-block w-2 h-4 bg-cyan-600 ml-1 animate-pulse" />
+              )}
+            </div>
+            <div className="text-xs text-slate-500 font-mono mt-1.5">
+              Hex: <strong className="text-slate-800">{headerHex}</strong>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Demodulated Payload Bitstream Block */}
+        <div className="bg-emerald-50/60 border border-emerald-100 rounded-xl p-4">
+          <div className="flex items-center justify-between text-xs font-semibold text-emerald-900 mb-2">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              Demodulated Payload Bitstream
+            </span>
+            <span className="text-[11px] text-emerald-700 font-mono">
+              {payloadStr.length} Bits ({Math.ceil(payloadStr.length / 8)} Bytes)
             </span>
           </div>
 
-          <div className="flex items-center font-mono text-base tracking-widest text-cyan-300 break-all select-all font-bold">
-            <span>{displayedHeader || (isTyping ? '' : headerStr || 'N/A')}</span>
-            {isTyping && displayedHeader.length < headerStr.length && (
-              <span className="inline-block w-2 h-4 bg-cyan-400 ml-1 animate-pulse" />
-            )}
-          </div>
-          <div className="text-[9px] text-slate-500 mt-1 flex gap-3">
-            <span>HEX: {headerHex}</span>
-            <span>SYNC CONFIDENCE: {headerStr && headerStr !== 'N/A' ? '99.8%' : 'N/A'}</span>
-            <span>BARKER PATTERN MATCH</span>
-          </div>
-        </div>
-
-        {/* 2. Payload Bits Block */}
-        <div className="bg-slate-950/90 border border-emerald-500/30 rounded-lg p-3 shadow-[0_0_15px_rgba(16,185,129,0.08)]">
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1.5 border-b border-slate-900 pb-1">
-            <div className="flex items-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-              <span className="text-emerald-300 font-bold uppercase tracking-wider">
-                DEMODULATED PAYLOAD BITSTREAM
-              </span>
-            </div>
-            <span className="text-[10px] text-emerald-400/90">
-              LENGTH: {payloadStr.length} BITS ({Math.ceil(payloadStr.length / 8)} BYTES)
-            </span>
-          </div>
-
-          {/* Formatted bit chunks (groups of 8 bits) */}
-          <div className="font-mono text-sm sm:text-base tracking-widest text-emerald-400 break-all select-all font-bold leading-relaxed">
+          <div className="font-mono text-base sm:text-lg font-bold tracking-widest text-slate-900 break-all leading-relaxed select-all">
             {isBinaryPayload && displayedPayload.length > 0 ? (
               displayedPayload.match(/.{1,8}/g)?.map((chunk, idx) => (
                 <span key={idx} className="mr-2 inline-block">
-                  <span className="text-emerald-300">{chunk}</span>
+                  <span className="text-emerald-900">{chunk}</span>
                 </span>
               ))
             ) : (
               <span>{displayedPayload || (isTyping ? '' : payloadStr || 'N/A')}</span>
             )}
-            <span className="inline-block w-2 h-4 bg-emerald-400 ml-1 align-middle animate-blink" />
+            <span className="inline-block w-2 h-4 bg-emerald-600 ml-1 align-middle animate-blink" />
+          </div>
+        </div>
+
+        {/* 3. HEX Dump & ASCII Interpretation Subcards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-slate-500 font-semibold block mb-1">Hexadecimal Dump</span>
+            <div className="font-mono font-bold text-amber-800 tracking-wider break-all">
+              {hexPayload}
+            </div>
           </div>
 
-          {/* Translations: HEX & ASCII Interpretation */}
-          <div className="mt-3 pt-2.5 border-t border-slate-900 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[10px] font-mono">
-            <div className="bg-slate-900/70 p-2 rounded border border-slate-800">
-              <span className="text-slate-400 block mb-0.5">HEXADECIMAL DUMP:</span>
-              <span className="text-amber-300 font-bold tracking-wider">{hexPayload}</span>
-            </div>
-            <div className="bg-slate-900/70 p-2 rounded border border-slate-800">
-              <span className="text-slate-400 block mb-0.5">ASCII STRING CONVERSION:</span>
-              <span className="text-cyan-300 font-bold tracking-wider font-mono">
-                &quot;{asciiPayload}&quot;
-              </span>
-              <span className="text-slate-500 ml-2">(PLAINTEXT SIGINT CHUNK)</span>
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-slate-500 font-semibold block mb-1">ASCII Interpretation</span>
+            <div className="font-mono font-bold text-cyan-900 tracking-wider break-all">
+              &quot;{asciiPayload}&quot;
             </div>
           </div>
         </div>
 
-        {/* Live Correlation Matrix Telemetry */}
-        <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900">
-          <div className="flex items-center space-x-3">
-            <span>BIT ERROR RATE (BER): <span className="text-emerald-400">0.00e+0</span></span>
-            <span>FRAME SYNC JITTER: <span className="text-cyan-400">&lt; 0.1 μs</span></span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span className="text-emerald-400 font-semibold">STREAM STATUS: BUFFERING LIVE PACKETS</span>
-          </div>
+      </div>
+
+      {/* Stream Info Footer */}
+      <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500 font-medium">
+        <div>
+          Bit Count: <strong className="text-slate-800 font-mono">{payloadStr.length}</strong>
+        </div>
+        <div>
+          Format: <strong className="text-slate-800">{isBinaryPayload ? 'Binary Bitstream' : 'Text / Raw'}</strong>
         </div>
       </div>
     </div>
   );
 }
+
+

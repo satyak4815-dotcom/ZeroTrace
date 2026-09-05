@@ -20,7 +20,7 @@ export const apiClient = axios.create({
  * Handles differences in key names (samplingFrequency vs sampling_frequency, extractedData vs bitstream, etc.)
  * and fills in safe defaults for missing fields.
  */
-export function normalizeSignalData(raw: any, fallbackFile?: File): SignalData {
+export function normalizeSignalData(raw: any, fallbackFile?: File, metadata?: SignalMetadata): SignalData {
   if (!raw) return mockSignalData;
 
   const fileName =
@@ -88,6 +88,61 @@ export function normalizeSignalData(raw: any, fallbackFile?: File): SignalData {
     rawParams.interleaving,
     isWav ? 'None' : 'None'
   );
+
+  const rawCenterFreq =
+    rawParams.center_frequency ??
+    rawParams.centerFrequency ??
+    raw.center_frequency ??
+    raw.centerFrequency ??
+    metadata?.center_frequency;
+
+  const center_frequency =
+    rawCenterFreq !== undefined &&
+    rawCenterFreq !== null &&
+    String(rawCenterFreq).trim() !== ''
+      ? String(rawCenterFreq)
+      : undefined;
+
+  const center_frequency_source =
+    metadata?.center_frequency_source ??
+    rawParams.center_frequency_source ??
+    raw.center_frequency_source ??
+    (center_frequency ? 'manual' : undefined);
+
+  const rawEstimatedBandwidth =
+    rawParams.estimated_bandwidth ??
+    rawParams.estimatedBandwidth ??
+    raw.estimated_bandwidth ??
+    raw.estimatedBandwidth ??
+    raw.data?.estimated_bandwidth ??
+    raw.data?.estimatedBandwidth ??
+    raw.data?.parameters?.estimated_bandwidth ??
+    raw.data?.parameters?.estimatedBandwidth ??
+    raw.result?.estimated_bandwidth ??
+    raw.result?.parameters?.estimated_bandwidth;
+
+  const estimated_bandwidth =
+    rawEstimatedBandwidth !== undefined &&
+    rawEstimatedBandwidth !== null &&
+    String(rawEstimatedBandwidth).trim() !== ''
+      ? String(rawEstimatedBandwidth)
+      : undefined;
+
+  // Pass through backend confidence strings for FEC/interleaving candidates
+  // These are NEVER hardcoded — only present when the backend provides them
+  const fec_confidence: string | undefined =
+    rawParams.fec_confidence ??
+    raw.fec_confidence ??
+    raw.data?.fec_confidence ??
+    undefined;
+
+  const interleaving_confidence: string | undefined =
+    rawParams.interleaving_confidence ??
+    raw.interleaving_confidence ??
+    raw.data?.interleaving_confidence ??
+    undefined;
+
+
 
   // Extract and normalize bitstream / extractedData
   const rawExtracted =
@@ -231,7 +286,14 @@ export function normalizeSignalData(raw: any, fallbackFile?: File): SignalData {
       modulation,
       fec,
       interleaving,
+      center_frequency,
+      center_frequency_source,
+      estimated_bandwidth,
+      fec_confidence,
+      interleaving_confidence,
     },
+
+
 
     plot_data: {
       constellation_points,
@@ -447,7 +509,12 @@ export interface SignalMetadata {
   center_frequency?:
   | number
   | string;
+
+  center_frequency_source?:
+  | 'sigmf'
+  | 'manual';
 }
+
 
 /**
  * Upload a raw .IQ or .wav signal capture file for signal processing & demodulation.
@@ -588,7 +655,7 @@ export async function uploadSignalFile(
         audioStream: response.data.audioStream,
       };
 
-      const normalized = normalizeSignalData(mergedRecord, file);
+      const normalized = normalizeSignalData(mergedRecord, file, metadata);
       const matrix = normalized?.plot_data?.waterfall_matrix;
       const stats = computeMatrixStatsAndFingerprint(matrix);
 
@@ -609,7 +676,8 @@ export async function uploadSignalFile(
       return normalized;
     }
 
-    return getSimulatedFallback(file);
+    return getSimulatedFallback(file, metadata);
+
   } catch (error) {
     console.info(
       '[ZeroTrace API] Uplink offline or fallback triggered. Simulating tactical signal ingestion...'
@@ -625,7 +693,7 @@ export async function uploadSignalFile(
       onProgress(100);
     }
 
-    return getSimulatedFallback(file);
+    return getSimulatedFallback(file, metadata);
   }
 }
 
@@ -633,7 +701,8 @@ export async function uploadSignalFile(
  * Helper to construct a compliant SignalData response based on the uploaded file metadata
  */
 function getSimulatedFallback(
-  file: File
+  file: File,
+  metadata?: SignalMetadata
 ): SignalData {
   const fileNameLower =
     file.name.toLowerCase();
@@ -665,6 +734,15 @@ function getSimulatedFallback(
     ).toFixed(1) +
     's';
 
+  const center_frequency =
+    metadata?.center_frequency !== undefined &&
+    metadata?.center_frequency !== null &&
+    String(metadata.center_frequency).trim() !== ''
+      ? String(metadata.center_frequency)
+      : undefined;
+
+  const center_frequency_source = metadata?.center_frequency_source;
+
   if (isWav) {
     return {
       ...signalPresets.covert,
@@ -675,6 +753,12 @@ function getSimulatedFallback(
           'AUDIO_WAV_IQ',
         duration:
           durationEst,
+      },
+
+      parameters: {
+        ...signalPresets.covert.parameters,
+        center_frequency,
+        center_frequency_source,
       },
     };
   }
@@ -691,6 +775,12 @@ function getSimulatedFallback(
 
       duration:
         durationEst,
+    },
+
+    parameters: {
+      ...mockSignalData.parameters,
+      center_frequency,
+      center_frequency_source,
     },
   };
 }

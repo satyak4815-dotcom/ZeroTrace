@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+
 export const metadata: Metadata = {
-  title: 'ZeroTrace Intel // Tactical SIGINT Command Center',
-  description: 'Military-Grade Signal Intelligence Dashboard for Demodulation, Constellation Analysis, and Bitstream Correlation',
+  title: 'ZeroTrace Intel — Automated Signal Intelligence & Demodulation Command',
+  description: 'Scientific RF Signal Intelligence & Demodulation Platform for Demodulation, Constellation Analysis, and Bitstream Extraction',
 };
 
 export default function RootLayout({
@@ -12,10 +15,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-cyan-500 selection:text-black">
+    <html lang="en" className={`light ${inter.variable}`}>
+      <body className="bg-[#F4F8FB] text-slate-900 min-h-screen antialiased selection:bg-cyan-600 selection:text-white font-sans">
         {children}
       </body>
     </html>
   );
 }
+
+

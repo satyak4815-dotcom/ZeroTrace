@@ -14,7 +14,17 @@ export interface SignalParameters {
   modulation: string;
   fec: string;
   interleaving: string;
+  center_frequency?: string | number;
+  center_frequency_source?: 'sigmf' | 'manual';
+  /** Backend-provided estimated occupied signal bandwidth in Hz. Never hardcoded. */
+  estimated_bandwidth?: string | number;
+  /** Backend-provided confidence string for FEC candidate (e.g. "Low", "Medium"). Never hardcoded. */
+  fec_confidence?: string;
+  /** Backend-provided confidence string for interleaving candidate. Never hardcoded. */
+  interleaving_confidence?: string;
 }
+
+
 
 export interface PlotData {
   constellation_points?: ConstellationPoint[] | null;
