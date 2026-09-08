@@ -403,6 +403,36 @@ app.post(
         decoding:
 
           aiResult?.decoding ??
+          null,
+
+
+        // ------------------------------------------------------
+        // Signal Fingerprint & DSP Analysis Fields
+        // ------------------------------------------------------
+
+        signal_fingerprint:
+
+          aiResult?.signal_fingerprint ??
+          null,
+
+        candidate_bitstream:
+
+          aiResult?.candidate_bitstream ??
+          null,
+
+        periodicity_analysis:
+
+          aiResult?.periodicity_analysis ??
+          null,
+
+        interleaver_analysis:
+
+          aiResult?.interleaver_analysis ??
+          null,
+
+        fec_analysis:
+
+          aiResult?.fec_analysis ??
           null
 
       };
