@@ -433,6 +433,26 @@ app.post(
         fec_analysis:
 
           aiResult?.fec_analysis ??
+          null,
+
+
+        // ------------------------------------------------------
+        // DSP Prototype Simulation Fields
+        // ------------------------------------------------------
+
+        simulation_input:
+
+          aiResult?.simulation_input ??
+          null,
+
+        deinterleaving_simulation:
+
+          aiResult?.deinterleaving_simulation ??
+          null,
+
+        fec_simulation:
+
+          aiResult?.fec_simulation ??
           null
 
       };
