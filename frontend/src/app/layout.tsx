@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import SpaceVideoBackground from '@/components/SpaceVideoBackground';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -16,7 +17,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`light ${inter.variable}`}>
-      <body className="bg-[#F4F8FB] text-slate-900 min-h-screen antialiased selection:bg-cyan-600 selection:text-white font-sans">
+      <body className="bg-transparent text-slate-900 min-h-screen antialiased selection:bg-cyan-600 selection:text-white font-sans relative">
+        <SpaceVideoBackground />
         {children}
       </body>
     </html>

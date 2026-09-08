@@ -217,7 +217,7 @@ export default function WaterfallVisualizer({
   }, [waterfallMatrix, hasData]);
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col h-full">
+    <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col h-full">
       {/* Header Bar */}
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
         <div className="flex items-center space-x-2.5">

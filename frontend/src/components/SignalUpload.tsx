@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import { UploadCloud, FileCheck, AlertCircle, RefreshCw, Radio, HardDrive, Clock, CheckCircle2 } from 'lucide-react';
+import { UploadCloud, FileCheck, AlertCircle, RefreshCw, Radio, HardDrive, Clock, CheckCircle2, Activity } from 'lucide-react';
 import { FileInfo, SignalData, signalPresets } from '@/lib/mockData';
 import { SignalMetadata } from '@/services/signalApi';
 
@@ -20,34 +20,33 @@ export default function SignalUpload({
   isUploading,
   uploadProgress,
 }: SignalUploadProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [metaErrorMessage, setMetaErrorMessage] = useState<string | null>(null);
-  const [sampleRate, setSampleRate] = useState<string>('');
-  const [centerFrequency, setCenterFrequency] = useState<string>('');
   const [sigmfInfo, setSigmfInfo] = useState<{
     datatype?: string;
     sample_rate?: number;
     center_frequency?: number;
   } | null>(null);
 
-  const sampleRateRef = useRef<string>('');
-  const centerFrequencyRef = useRef<string>('');
-  const sampleRateInputRef = useRef<HTMLInputElement>(null);
-  const centerFrequencyInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const metaFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSampleRateChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    sampleRateRef.current = val;
-    setSampleRate(val);
-  };
-
-  const handleCenterFrequencyChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    centerFrequencyRef.current = val;
-    setCenterFrequency(val);
+  const formatFreq = (val?: number): string => {
+    if (val === undefined || val === null || isNaN(val) || val <= 0) {
+      return 'Not provided';
+    }
+    if (val >= 1e9) {
+      return `${(val / 1e9).toFixed(3)} GHz`;
+    }
+    if (val >= 1e6) {
+      return `${(val / 1e6).toFixed(3)} MHz`;
+    }
+    if (val >= 1e3) {
+      return `${(val / 1e3).toFixed(3)} kHz`;
+    }
+    return `${val.toLocaleString()} Hz`;
   };
 
   const handleMetaFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -96,16 +95,10 @@ export default function SignalUpload({
 
       if (hasValidSr) {
         info.sample_rate = parsedSr;
-        const srStr = String(parsedSr);
-        sampleRateRef.current = srStr;
-        setSampleRate(srStr);
       }
 
       if (hasValidCf) {
         info.center_frequency = parsedCf;
-        const cfStr = String(parsedCf);
-        centerFrequencyRef.current = cfStr;
-        setCenterFrequency(cfStr);
       }
 
       setSigmfInfo(info);
@@ -115,8 +108,8 @@ export default function SignalUpload({
     }
   };
 
-  const validateAndUpload = (file: File) => {
-    console.log('[ZT Upload] File selected:', file.name, file.type, file.size);
+  const handleSelectFile = (file: File) => {
+    console.log('[ZT Upload] File selected for analysis:', file.name, file.type, file.size);
     setErrorMessage(null);
     const fileName = file.name.toLowerCase();
     const isValid =
@@ -131,47 +124,30 @@ export default function SignalUpload({
 
     if (!isValid) {
       setErrorMessage('Unsupported format: Please select an .IQ, .WAV, .BIN, .RAW, .DAT, or .SIGMF-DATA signal file.');
+      setSelectedFile(null);
       return;
     }
 
-    const rawSampleRate =
-      sampleRateRef.current ||
-      sampleRate ||
-      sampleRateInputRef.current?.value ||
-      (typeof document !== 'undefined'
-        ? (document.getElementById('sample-rate-input') as HTMLInputElement)?.value
-        : '') ||
-      '';
+    setSelectedFile(file);
+  };
 
-    const rawCenterFreq =
-      centerFrequencyRef.current ||
-      centerFrequency ||
-      centerFrequencyInputRef.current?.value ||
-      (typeof document !== 'undefined'
-        ? (document.getElementById('center-freq-input') as HTMLInputElement)?.value
-        : '') ||
-      '';
+  const validateAndUpload = (targetFile?: File | null) => {
+    const file = targetFile || selectedFile;
+    if (!file) {
+      setErrorMessage('Please select a signal file before analyzing.');
+      return;
+    }
+    setErrorMessage(null);
 
     const metadata: SignalMetadata = {};
 
-    if (rawSampleRate && String(rawSampleRate).trim() !== '') {
-      const parsedSampleRate = parseFloat(String(rawSampleRate).replace(/,/g, '').trim());
-      if (!isNaN(parsedSampleRate) && parsedSampleRate > 0) {
-        metadata.sample_rate = parsedSampleRate;
-      }
+    if (sigmfInfo?.sample_rate !== undefined && sigmfInfo.sample_rate > 0) {
+      metadata.sample_rate = sigmfInfo.sample_rate;
     }
 
-    if (rawCenterFreq && String(rawCenterFreq).trim() !== '') {
-      const parsedCenterFreq = parseFloat(String(rawCenterFreq).replace(/,/g, '').trim());
-      if (!isNaN(parsedCenterFreq) && parsedCenterFreq > 0) {
-        metadata.center_frequency = parsedCenterFreq;
-        const isFromSigmf = Boolean(
-          sigmfInfo &&
-          sigmfInfo.center_frequency !== undefined &&
-          Math.abs(Number(sigmfInfo.center_frequency) - parsedCenterFreq) < 1
-        );
-        metadata.center_frequency_source = isFromSigmf ? 'sigmf' : 'manual';
-      }
+    if (sigmfInfo?.center_frequency !== undefined && sigmfInfo.center_frequency > 0) {
+      metadata.center_frequency = sigmfInfo.center_frequency;
+      metadata.center_frequency_source = 'sigmf';
     }
 
     console.log('[ZT Upload] Triggering onFileUpload with metadata:', metadata);
@@ -196,14 +172,14 @@ export default function SignalUpload({
     setIsDragOver(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      validateAndUpload(e.dataTransfer.files[0]);
+      handleSelectFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     console.log('[ZT Upload] handleFileChange fired, files:', e.target.files?.length);
     if (e.target.files && e.target.files.length > 0) {
-      validateAndUpload(e.target.files[0]);
+      handleSelectFile(e.target.files[0]);
     }
   };
 
@@ -217,8 +193,11 @@ export default function SignalUpload({
     }
   };
 
+  const activeFileName = selectedFile?.name || currentFileInfo?.name || '';
+  const isWavFile = activeFileName.toLowerCase().endsWith('.wav');
+
   return (
-    <div className="relative rounded-3xl bg-gradient-to-br from-cyan-50/90 via-sky-50/50 to-blue-50/30 border border-cyan-100/80 p-6 sm:p-10 shadow-xs overflow-hidden">
+    <div className="relative py-4 sm:py-8 overflow-hidden">
       
       {/* Lightweight SVG Waveform Background Illustration */}
       <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-20 pointer-events-none hidden md:block">
@@ -235,16 +214,16 @@ export default function SignalUpload({
         
         {/* Hero Banner Text */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 mb-3">
-            Welcome to <span className="text-cyan-600 bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">ZeroTrace Intel</span>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-3 drop-shadow-md">
+            Welcome to <span className="text-cyan-400 bg-gradient-to-r from-cyan-400 to-sky-300 bg-clip-text text-transparent">ZeroTrace Intel</span>
           </h1>
-          <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto font-normal">
+          <p className="text-base sm:text-lg text-white max-w-2xl mx-auto font-medium drop-shadow-sm">
             Upload a signal file to analyze modulation, spectrum, and signal characteristics.
           </p>
         </div>
 
         {/* Upload Card */}
-        <div className="bg-white/95 backdrop-blur-xs border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-sm">
           
           {/* Card Header */}
           <div className="flex items-center justify-between mb-5 pb-4 border-b border-slate-100">
@@ -280,8 +259,43 @@ export default function SignalUpload({
                 />
               </div>
             </div>
+          ) : selectedFile ? (
+            /* Selected pending file state */
+            <div className="border border-cyan-200 bg-cyan-50/60 rounded-xl p-5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start space-x-3.5">
+                  <div className="p-3 rounded-xl bg-cyan-100 text-cyan-700 flex-shrink-0">
+                    <Radio className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-100 text-cyan-800 uppercase tracking-wider">
+                        File Selected (Pending Analysis)
+                      </span>
+                    </div>
+                    <h4 className="text-base font-bold text-slate-900 mt-1 break-all">
+                      {selectedFile.name}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 mt-1.5 font-medium">
+                      <span>{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-cyan-700 font-semibold uppercase">
+                        {selectedFile.name.split('.').pop()} Signal Format
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <label
+                  htmlFor="signal-file-input"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer shadow-2xs select-none"
+                >
+                  <UploadCloud className="w-4 h-4 text-slate-600" />
+                  <span>Choose Different File</span>
+                </label>
+              </div>
+            </div>
           ) : currentFileInfo && currentFileInfo.name ? (
-            /* File loaded state */
+            /* Active Analyzed File state */
             <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start space-x-3.5">
@@ -291,7 +305,7 @@ export default function SignalUpload({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase tracking-wider">
-                        Active Signal File
+                        Active Analyzed Signal
                       </span>
                     </div>
                     <h4 className="text-base font-bold text-slate-900 mt-1 break-all">
@@ -313,7 +327,7 @@ export default function SignalUpload({
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white transition-all cursor-pointer shadow-xs active:scale-95 select-none"
                 >
                   <UploadCloud className="w-4 h-4" />
-                  <span>Choose Another File</span>
+                  <span>Select New Signal File</span>
                 </label>
               </div>
             </div>
@@ -353,41 +367,35 @@ export default function SignalUpload({
             </label>
           )}
 
-          {/* SDR Capture Metadata Inputs */}
+          {/* SDR Capture Metadata Display Section */}
           <div className="mt-6 pt-5 border-t border-slate-100">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-slate-700">
-                SDR Capture Metadata
-              </span>
-              <label
-                htmlFor="sigmf-meta-file-input"
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 cursor-pointer transition-colors shadow-2xs select-none"
-              >
-                <FileCheck className="w-3.5 h-3.5 text-purple-600" />
-                <span>Attach .sigmf-meta</span>
-              </label>
-            </div>
-
-            {/* SigMF Meta Confirmation Badge */}
-            {sigmfInfo && (
-              <div className="mb-3 p-3 rounded-xl bg-purple-50/80 border border-purple-200/80 text-xs text-purple-900 flex flex-col gap-1 shadow-2xs">
-                <div className="flex items-center space-x-1.5 text-purple-800 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                  <span>SigMF Metadata Attached</span>
-                </div>
-                <div className="text-purple-800/90 pl-5 space-y-0.5 text-xs font-medium">
-                  {sigmfInfo.datatype && (
-                    <div>Datatype: <span className="font-semibold text-purple-950">{sigmfInfo.datatype}</span></div>
-                  )}
-                  {sigmfInfo.sample_rate !== undefined && (
-                    <div>Sample Rate: <span className="font-semibold text-purple-950">{sigmfInfo.sample_rate.toLocaleString()} Hz</span></div>
-                  )}
-                  {sigmfInfo.center_frequency !== undefined && (
-                    <div>Center Frequency: <span className="font-semibold text-purple-950">{sigmfInfo.center_frequency.toLocaleString()} Hz</span></div>
-                  )}
-                </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Capture Metadata
+                </span>
+                {sigmfInfo ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200/80">
+                    <CheckCircle2 className="w-3 h-3 text-purple-600" />
+                    Metadata: DETECTED
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                    Metadata: NOT ATTACHED
+                  </span>
+                )}
               </div>
-            )}
+
+              {!isWavFile && (
+                <label
+                  htmlFor="sigmf-meta-file-input"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200/80 cursor-pointer transition-colors shadow-2xs select-none"
+                >
+                  <FileCheck className="w-3.5 h-3.5 text-purple-600" />
+                  <span>{sigmfInfo ? 'Change .sigmf-meta' : 'Attach .sigmf-meta'}</span>
+                </label>
+              )}
+            </div>
 
             {/* SigMF Meta Error Message */}
             {metaErrorMessage && (
@@ -397,45 +405,83 @@ export default function SignalUpload({
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="sample-rate-input" className="block text-xs font-medium text-slate-600 mb-1">
-                  Sample Rate (Hz)
-                </label>
-                <input
-                  id="sample-rate-input"
-                  ref={sampleRateInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  value={sampleRate}
-                  onChange={handleSampleRateChange}
-                  onInput={handleSampleRateChange}
-                  placeholder="e.g. 20000000"
-                  disabled={isUploading}
-                  className="w-full bg-white border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-50 disabled:bg-slate-100"
-                />
+            {isWavFile ? (
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
+                WAV Audio IQ Signal — metadata will be extracted directly from audio headers by the DSP core.
               </div>
-              <div>
-                <label htmlFor="center-freq-input" className="block text-xs font-medium text-slate-600 mb-1">
-                  Center Frequency (Hz)
-                </label>
-                <input
-                  id="center-freq-input"
-                  ref={centerFrequencyInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  value={centerFrequency}
-                  onChange={handleCenterFrequencyChange}
-                  onInput={handleCenterFrequencyChange}
-                  placeholder="e.g. 915000000"
-                  disabled={isUploading}
-                  className="w-full bg-white border border-slate-200 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all disabled:opacity-50 disabled:bg-slate-100"
-                />
+            ) : sigmfInfo ? (
+              /* Auto-Extracted Read-Only Metadata Display */
+              <div className="bg-purple-50/60 border border-purple-100 rounded-xl p-4 text-xs space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-white/80 p-2.5 rounded-lg border border-purple-100">
+                    <span className="text-[10px] uppercase font-semibold text-slate-500 block mb-0.5">
+                      Sample Rate
+                    </span>
+                    <span className="font-mono font-bold text-slate-900 text-xs">
+                      {formatFreq(sigmfInfo.sample_rate)}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/80 p-2.5 rounded-lg border border-purple-100">
+                    <span className="text-[10px] uppercase font-semibold text-slate-500 block mb-0.5">
+                      Center Frequency
+                    </span>
+                    <span className="font-mono font-bold text-slate-900 text-xs">
+                      {formatFreq(sigmfInfo.center_frequency)}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/80 p-2.5 rounded-lg border border-purple-100">
+                    <span className="text-[10px] uppercase font-semibold text-slate-500 block mb-0.5">
+                      Datatype / Source
+                    </span>
+                    <span className="font-semibold text-purple-900 text-xs">
+                      {sigmfInfo.datatype || 'SigMF Metadata'}
+                    </span>
+                  </div>
+                </div>
               </div>
+            ) : (
+              /* No metadata attached state */
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-500">
+                Attach the matching <code className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-800 font-mono text-[11px]">.sigmf-meta</code> file to provide capture metadata such as sample rate and center frequency.
+              </div>
+            )}
+          </div>
+
+          {/* Action Area: Analyze Signal Button */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-xs text-slate-500 font-medium">
+              {selectedFile ? (
+                <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Ready to analyze <strong className="font-mono text-slate-800">{selectedFile.name}</strong>
+                </span>
+              ) : (
+                <span className="text-slate-400">
+                  Select a signal file above before starting analysis.
+                </span>
+              )}
             </div>
-            <p className="text-[11px] text-slate-500 mt-2 font-normal">
-              Optional capture metadata — forwarded directly to the backend DSP core.
-            </p>
+
+            <button
+              type="button"
+              onClick={() => validateAndUpload(selectedFile)}
+              disabled={!selectedFile || isUploading}
+              className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-3 text-xs font-extrabold rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-cyan-600 disabled:hover:to-blue-600 active:scale-[0.98] select-none"
+            >
+              {isUploading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span>Analyzing Signal...</span>
+                </>
+              ) : (
+                <>
+                  <Activity className="w-4 h-4 text-cyan-100" />
+                  <span>Analyze Signal</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Hidden File Input for .sigmf-meta */}
@@ -505,4 +551,3 @@ export default function SignalUpload({
     </div>
   );
 }
-

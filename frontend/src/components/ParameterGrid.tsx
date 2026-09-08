@@ -97,7 +97,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         
         {/* Card 1: Sampling Frequency */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center space-x-2.5 mb-3">
               <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
@@ -119,7 +119,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
         </div>
 
         {/* Card 2: Center Frequency */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -164,7 +164,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
         </div>
 
         {/* Card 3: Modulation Type */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -193,7 +193,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
         </div>
 
         {/* Card 4: FEC Decoder */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -205,7 +205,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
                 </span>
               </div>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                {hasActiveFec ? 'Experimental Candidate' : 'No FEC'}
+                {hasActiveFec ? 'Experimental FEC' : 'No FEC'}
               </span>
             </div>
 
@@ -223,7 +223,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
         </div>
 
         {/* Card 5: De-Interleaving */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2.5">
@@ -235,7 +235,7 @@ export default function ParameterGrid({ parameters }: ParameterGridProps) {
                 </span>
               </div>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                {hasActiveInterleaving ? 'Experimental Candidate' : 'Direct'}
+                {hasActiveInterleaving ? 'Experimental Interleaving' : 'Direct'}
               </span>
             </div>
 
